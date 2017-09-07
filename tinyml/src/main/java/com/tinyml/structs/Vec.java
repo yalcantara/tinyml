@@ -51,7 +51,7 @@ public class Vec {
 	}
 
 	private void check(int idx) {
-		if (idx >= length || idx < 1) {
+		if (idx >= length || idx < 0) {
 			throw new IndexOutOfBoundsException(
 					"The idx parameter is out of bounds. Got " + idx + ", length: " + length + ".");
 		}

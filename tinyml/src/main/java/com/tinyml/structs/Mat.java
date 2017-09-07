@@ -1,5 +1,9 @@
 package com.tinyml.structs;
 
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.api.rng.distribution.impl.NormalDistribution;
 import org.nd4j.linalg.factory.Nd4j;
@@ -7,8 +11,8 @@ import org.nd4j.linalg.ops.transforms.Transforms;
 
 public class Mat {
 
-	private static final int MAX_PRINT_ROWS = 500;
-	private static final int MAX_PRINT_COLS = 500;
+	private static final int MAX_PRINT_ROWS = 300;
+	private static final int MAX_PRINT_COLS = 300;
 
 	private final INDArray arr;
 
@@ -65,12 +69,12 @@ public class Mat {
 	}
 
 	private void check(int i, int j) {
-		if (i >= m || i < 1) {
+		if (i >= m || i < 0) {
 			throw new IndexOutOfBoundsException(
 					"The row parameter is " + "out of bounds. Rows " + m + ", row parameter: " + i + ".");
 		}
 
-		if (j >= n || j < 1) {
+		if (j >= n || j < 0) {
 			throw new IndexOutOfBoundsException(
 					"The col parameter is " + "out of bounds. Columns " + n + ", col parameter: " + j + ".");
 		}
@@ -153,30 +157,71 @@ public class Mat {
 		return new Mat(arr.getRows(idx));
 	}
 
+	public Mat stdScale() {
+		Vec mean = colMean();
+		Vec std = colStdev();
+
+		Mat ans = clone();
+		ans.arr.subiRowVector(mean.arr);
+		ans.arr.diviRowVector(std.arr);
+
+		return ans;
+	}
+
+	public float sum() {
+		return arr.sumNumber().floatValue();
+	}
+
 	public Vec colMin() {
-		INDArray newarr = arr.min(new int[] { 1 });
+		INDArray newarr = arr.min(new int[] { 0 });
 
 		return new Vec(newarr);
 	}
 
-	public Vec colMax(int col) {
-		INDArray newarr = arr.max(new int[] { 1 });
-
-		return new Vec(newarr);
-	}
-
-	public Vec rowMax(int row) {
-
+	public Vec colMax() {
 		INDArray newarr = arr.max(new int[] { 0 });
 
 		return new Vec(newarr);
 	}
 
-	public Vec rowMin(int row) {
+	public Vec colSum() {
+		return new Vec(arr.sum(new int[] { 0 }));
+	}
 
-		INDArray newarr = arr.min(new int[] { 0 });
+	public Vec colVar() {
+		return new Vec(arr.var(new int[] { 0 }));
+	}
 
-		return new Vec(newarr);
+	public Vec colStdev() {
+		return new Vec(arr.std(new int[] { 0 }));
+	}
+
+	public Vec colMean() {
+		return new Vec(arr.mean(new int[] { 0 }));
+	}
+
+	public Vec rowMax() {
+		return new Vec(arr.max(new int[] { 1 }));
+	}
+
+	public Vec rowMin() {
+		return new Vec(arr.min(new int[] { 1 }));
+	}
+
+	public Vec rowSum() {
+		return new Vec(arr.sum(new int[] { 1 }));
+	}
+
+	public Vec rowVar() {
+		return new Vec(arr.var(new int[] { 1 }));
+	}
+
+	public Vec rowStdev() {
+		return new Vec(arr.std(new int[] { 1 }));
+	}
+
+	public Vec rowMean() {
+		return new Vec(arr.mean(new int[] { 1 }));
 	}
 
 	public Mat add(Mat b) {
@@ -267,13 +312,9 @@ public class Mat {
 		}
 
 		Mat c = dot(w);
-		c.addiRowVec(b);
+		c.arr.addiRowVector(b.arr);
 
 		return c;
-	}
-
-	public void addiRowVec(Vec v) {
-		arr.addiRowVector(v.arr);
 	}
 
 	public Mat mult(Mat b) {
@@ -324,6 +365,15 @@ public class Mat {
 		return new Vec(newarr);
 	}
 
+	public Mat transp() {
+		return new Mat(arr.transpose());
+	}
+
+	@Override
+	public Mat clone() {
+		return new Mat(arr.dup());
+	}
+
 	public float[][] toArray() {
 		float[][] arr = new float[m][n];
 
@@ -334,6 +384,67 @@ public class Mat {
 		}
 
 		return arr;
+	}
+
+	public void print() {
+		print(System.out, MAX_PRINT_ROWS, MAX_PRINT_COLS);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder(1024);
+		print(sb, MAX_PRINT_ROWS, MAX_PRINT_COLS);
+		return sb.toString();
+	}
+
+	public void print(Appendable out, int maxRows, int maxCols) {
+
+		maxRows = (maxRows < m) ? maxRows : m;
+		maxCols = (maxCols < n) ? maxCols : n;
+
+		try {
+			if (maxRows < m || maxCols < n) {
+				out.append("Mat " + m + "x" + n + "  (truncated)\n");
+			} else {
+				out.append("Mat " + m + "x" + n + "\n");
+			}
+
+			NumberFormat f = DecimalFormat.getNumberInstance();
+			f.setMaximumFractionDigits(4);
+			f.setMinimumFractionDigits(4);
+			f.setGroupingUsed(true);
+
+			int[] maxLength = new int[maxCols];
+
+			for (int j = 0; j < maxCols; j++) {
+				for (int i = 0; i < maxRows; i++) {
+
+					String str = f.format(get(i, j));
+
+					maxLength[j] = Math.max(maxLength[j], str.length());
+				}
+			}
+
+			for (int i = 0; i < maxRows; i++) {
+				for (int j = 0; j < maxCols; j++) {
+					if (j > 0) {
+						out.append("  ");
+					}
+					String str = f.format(get(i, j));
+					int leading = maxLength[j] - str.length();
+					for (int s = 0; s < leading; s++) {
+						out.append(" ");
+					}
+
+					out.append(str);
+				}
+				out.append("\n");
+			}
+
+			out.append("\n");
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 }
