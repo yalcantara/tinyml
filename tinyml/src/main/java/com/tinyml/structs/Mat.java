@@ -3,6 +3,7 @@ package com.tinyml.structs;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.api.rng.distribution.impl.NormalDistribution;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.ops.transforms.Transforms;
 
 public class Mat {
 
@@ -32,7 +33,7 @@ public class Mat {
 		this.n = shape[1];
 	}
 
-	public Mat(float[] arr, int m, int n) {
+	public Mat(int m, int n, float[] arr) {
 		this.m = m;
 		this.n = n;
 		this.arr = Nd4j.create(new int[] { m, n }, 'c');
@@ -43,7 +44,7 @@ public class Mat {
 		}
 	}
 
-	public Mat(double[] arr, int m, int n) {
+	public Mat(int m, int n, double[] arr) {
 		this.m = m;
 		this.n = n;
 		this.arr = Nd4j.create(new int[] { m, n }, 'c');
@@ -112,4 +113,227 @@ public class Mat {
 	public int length() {
 		return arr.length();
 	}
+
+	public Vec col(int idx) {
+		return new Vec(arr.getColumn(idx));
+	}
+
+	public Vec row(int idx) {
+		return new Vec(arr.getRow(idx));
+	}
+
+	public Mat selectRows(int start, int end) {
+
+		int l = end - start;
+
+		if (end <= start) {
+			throw new IllegalArgumentException(
+					"The 'end' parameter must be higher than the 'start' parameter. Expected >  " + start + ", but got "
+							+ end + " instead.");
+		}
+
+		if (l > m) {
+			throw new IllegalArgumentException(
+					"For roll=false the length of the selection can not be higher than this matrix number of rows. Number of rows: "
+							+ m + ", selection length: " + l + ".");
+		}
+
+		if (end > m) {
+			throw new IllegalArgumentException(
+					"For roll=false the end parameter must be less or equals than the number of rows. Number of rows: "
+							+ m + ", end parameter: " + m + ".");
+		}
+
+		int[] idx = new int[l];
+
+		for (int i = 0; i < l; i++) {
+			idx[i] = start + i;
+		}
+
+		return new Mat(arr.getRows(idx));
+	}
+
+	public Vec colMin() {
+		INDArray newarr = arr.min(new int[] { 1 });
+
+		return new Vec(newarr);
+	}
+
+	public Vec colMax(int col) {
+		INDArray newarr = arr.max(new int[] { 1 });
+
+		return new Vec(newarr);
+	}
+
+	public Vec rowMax(int row) {
+
+		INDArray newarr = arr.max(new int[] { 0 });
+
+		return new Vec(newarr);
+	}
+
+	public Vec rowMin(int row) {
+
+		INDArray newarr = arr.min(new int[] { 0 });
+
+		return new Vec(newarr);
+	}
+
+	public Mat add(Mat b) {
+
+		int bm = b.m;
+		int bn = b.n;
+		if (m != bm || n != bn) {
+			throw new IllegalArgumentException(
+					"Matrix dimensions must be the same. This " + m + "x" + n + ", other " + bm + "x" + bn);
+		}
+
+		INDArray newarr = arr.add(b.arr);
+
+		return new Mat(newarr);
+	}
+
+	public Mat add(double val) {
+		return add((float) val);
+	}
+
+	public Mat add(float val) {
+
+		INDArray newarr = arr.add(val);
+
+		return new Mat(newarr);
+	}
+
+	public Mat sub(float val) {
+
+		INDArray newarr = arr.sub(val);
+
+		return new Mat(newarr);
+	}
+
+	public Mat sub(Mat b) {
+
+		int bm = b.m;
+		int bn = b.n;
+		if (m != bm || n != bn) {
+			throw new IllegalArgumentException(
+					"Matrix dimensions must be the same. This " + m + "x" + n + ", other " + bm + "x" + bn);
+		}
+
+		INDArray newarr = arr.add(b.arr);
+
+		return new Mat(newarr);
+	}
+
+	public void assign(float val) {
+		arr.assign(val);
+	}
+
+	public Mat pow(float exp) {
+
+		INDArray newarr = Transforms.pow(arr, exp);
+		return new Mat(newarr);
+	}
+
+	public Mat dot(Mat b) {
+		int bm = b.m;
+		int bn = b.n;
+
+		if (n != bm) {
+			throw new IllegalArgumentException("Invalid matrix dimension for multiplication. This " + m + "x" + n
+					+ ", other " + bm + "x" + bn + ".");
+		}
+
+		INDArray newarr = Nd4j.createUninitialized(new int[] { m, bn }, 'c');
+		arr.mmul(b.arr, newarr);
+
+		return new Mat(newarr);
+	}
+
+	public Mat affine(Mat w, Vec b) {
+
+		int wm = w.m;
+		int wn = w.n;
+		int bl = b.length();
+
+		if (n != wm) {
+			throw new IllegalArgumentException("Invalid matrix dimension for multiplication. This " + m + "x" + n
+					+ ", other " + wm + "x" + wn + ".");
+		}
+
+		if (wn != bl) {
+			throw new IllegalArgumentException(
+					"Invalid vector dimension for addition broadcast. Expected " + n + ", but got " + bl + " instead.");
+		}
+
+		Mat c = dot(w);
+		c.addiRowVec(b);
+
+		return c;
+	}
+
+	public void addiRowVec(Vec v) {
+		arr.addiRowVector(v.arr);
+	}
+
+	public Mat mult(Mat b) {
+		int om = b.m;
+		int on = b.n;
+
+		if (n != on || m != om) {
+			throw new IllegalArgumentException("Invalid matrix dimension for element-wise multiplication. Expected "
+					+ "the same dimension for both matrices, but instead go: this " + m + "x" + n + ", other " + om
+					+ "x" + on + ".");
+		}
+
+		INDArray newarr = arr.mul(b.arr);
+
+		return new Mat(newarr);
+	}
+
+	public Mat mult(double scalar) {
+		return mult((float) scalar);
+	}
+
+	public Mat mult(float scalar) {
+
+		INDArray newarr = arr.mul(scalar);
+
+		return new Mat(newarr);
+	}
+
+	public Mat div(double scalar) {
+		return div((float) scalar);
+	}
+
+	public Mat div(float scalar) {
+		return mult(1.0f / scalar);
+	}
+
+	public Vec dot(Vec x) {
+		int l = x.length();
+
+		if (n != l) {
+			throw new IllegalArgumentException(
+					"Invalid matrix dimension for multiplication. This " + m + "x" + n + ", vector length " + l + ".");
+		}
+
+		INDArray newarr = Nd4j.createUninitialized(l);
+		Nd4j.getBlasWrapper().level2().gemv('c', 'n', 1, arr, x.arr, 0, newarr);
+
+		return new Vec(newarr);
+	}
+
+	public float[][] toArray() {
+		float[][] arr = new float[m][n];
+
+		for (int i = 0; i < m; i++) {
+			for (int j = 0; j < n; j++) {
+				arr[i][j] = get(i, j);
+			}
+		}
+
+		return arr;
+	}
+
 }
