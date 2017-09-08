@@ -11,13 +11,17 @@ import org.nd4j.linalg.ops.transforms.Transforms;
 
 public class Mat {
 
-	private static final int MAX_PRINT_ROWS = 300;
-	private static final int MAX_PRINT_COLS = 300;
+	private static final int MAX_PRINT_ROWS = 150;
+	private static final int MAX_PRINT_COLS = 20;
 
 	private final INDArray arr;
 
 	private final int m;
 	private final int n;
+
+	public static Mat wrap(INDArray arr) {
+		return new Mat(arr.dup());
+	}
 
 	public Mat(int m, int n) {
 
@@ -126,9 +130,18 @@ public class Mat {
 		return new Vec(arr.getRow(idx));
 	}
 
-	public Mat selectRows(int start, int end) {
+	public Mat selectCols(int start, int end) {
 
 		int l = end - start;
+
+		if (start < 0) {
+			throw new IllegalArgumentException("The 'start' parameter must be 0 or higher. Got: " + start + ".");
+		}
+
+		if (end > n) {
+			throw new IllegalArgumentException(
+					"The 'end' parameter must less or equal to the number of columns. Got: " + end + ".");
+		}
 
 		if (end <= start) {
 			throw new IllegalArgumentException(
@@ -136,16 +149,32 @@ public class Mat {
 							+ end + " instead.");
 		}
 
-		if (l > m) {
-			throw new IllegalArgumentException(
-					"For roll=false the length of the selection can not be higher than this matrix number of rows. Number of rows: "
-							+ m + ", selection length: " + l + ".");
+		int[] idx = new int[l];
+
+		for (int i = 0; i < l; i++) {
+			idx[i] = start + i;
+		}
+
+		return new Mat(arr.getColumns(idx));
+	}
+
+	public Mat selectRows(int start, int end) {
+
+		int l = end - start;
+
+		if (start < 0) {
+			throw new IllegalArgumentException("The 'start' parameter must be 0 or higher. Got: " + start + ".");
 		}
 
 		if (end > m) {
 			throw new IllegalArgumentException(
-					"For roll=false the end parameter must be less or equals than the number of rows. Number of rows: "
-							+ m + ", end parameter: " + m + ".");
+					"The 'end' parameter must less or equal to the number of rows. Got: " + end + ".");
+		}
+
+		if (end <= start) {
+			throw new IllegalArgumentException(
+					"The 'end' parameter must be higher than the 'start' parameter. Expected >  " + start + ", but got "
+							+ end + " instead.");
 		}
 
 		int[] idx = new int[l];
@@ -383,6 +412,13 @@ public class Mat {
 			}
 		}
 
+		return arr;
+	}
+
+	/**
+	 * Returns the internal implementation object. Use it on your own risk.
+	 */
+	public INDArray ptr() {
 		return arr;
 	}
 

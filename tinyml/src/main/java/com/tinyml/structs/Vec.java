@@ -16,6 +16,10 @@ public class Vec {
 
 	private final int length;
 
+	public static Vec wrap(INDArray arr) {
+		return new Vec(arr.dup());
+	}
+
 	Vec(INDArray arr) {
 		this.arr = arr;
 		this.length = arr.length();
@@ -136,6 +140,10 @@ public class Vec {
 		INDArray newarr = arr.sub(b.arr);
 
 		return new Vec(newarr);
+	}
+
+	public float sum() {
+		return arr.sumNumber().floatValue();
 	}
 
 	public float[] toArray() {
